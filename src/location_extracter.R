@@ -31,7 +31,7 @@ for (nom in names(raw_points)) {
   row_idx <- N_ROWS - row_from_bottom
   
   gps_list[[nom]] <- pt
-  locales_list[[nom]] <- c(row = 64 - row_idx, col = col_idx)
+  locales_list[[nom]] <- c(row = row_idx, col = col_idx)
 }
 
 points_interet <- list(
@@ -40,6 +40,7 @@ points_interet <- list(
 )
 
 print(points_interet$coordoneesLocales)
+save(points_interet, file = "./data/points_interet.RData")
 
 # -- TEST EN PLOT -- #
 
@@ -48,7 +49,7 @@ matrice <- as.matrix(data)
 
 locales <- points_interet$coordoneesLocales
 
-px <- sapply(locales, function(p) p["row.y"])
+px <- sapply(locales, function(p) 64- p["row.y"])
 py <- sapply(locales, function(p) p["col.x"])
 pynoms <- names(locales)
 
@@ -62,4 +63,3 @@ image(1:64, 1:64, t(matrice),
 
 points(px, py, pch = 18, col = "red", cex = 1.5)
 text(px, py, labels = gsub("_", " ", noms), pos = 3, col = "black", font = 2, cex = 0.8)
-
