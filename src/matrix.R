@@ -1,11 +1,22 @@
-load("./data/points_interet.RData")
 
-dossier <- "./data"
-fichiers <- list.files(dossier, pattern = "_maxH_sully.csv", full.names = TRUE)
+load("./RData/points_interet.RData")
 
-cible = points_interet$coordoneesLocales$caserne_pompiers
+# Available interest points :
+# - gare_sully
+# - parc_chateau
+# - centre_sully
+# - caserne_pompiers
+# - domaine_epinoy NOT WORKING AS OUT OF SCOPE
 
-cible
+X <- "gare_sully"
+
+fichiers <- list.files("./data", pattern = "_maxH_sully.csv", full.names = TRUE)
+
+cible <- points_interet$coordoneesLocales[[X]]
+
+if (is.null(cible)) {
+  stop(paste("Le point d'intérêt", X, "n'existe pas dans les données chargées."))
+}
 
 donnees_extraites <- lapply(fichiers, function(f) {
   
@@ -17,14 +28,19 @@ donnees_extraites <- lapply(fichiers, function(f) {
   
   matrice <- as.matrix(read.csv(f, header = TRUE, row.names = 1))
   print(nom_fichier)
+  
   valeur_xy <- matrice[cible["row.y"], cible["col.x"]]
   
   return(c(params_vec, valeur_xy))
 })
+
+donnees_extraites
 
 matrice_finale <- do.call(rbind, donnees_extraites)
 df_final <- as.data.frame(matrice_finale)
 
 colnames(df_final) <- c("er", "ks2", "ks3", "ks4", "ks_fp", "of", "qmax", "tm", "hauteur")
 
+save_path <- paste0("./RData/", X, "_matrix.RData")
+save(df_final, file = save_path)
 head(df_final)
