@@ -28,8 +28,14 @@ donnees_extraites <- lapply(fichiers, function(f) {
   
   matrice <- as.matrix(read.csv(f, header = TRUE, row.names = 1))
   print(nom_fichier)
+    
+  r_idx <- cible["row.y"]
+  c_idx <- cible["col.x"]
   
-  valeur_xy <- matrice[cible["row.y"], cible["col.x"]]
+  vis_r <- c_idx
+  vis_c <- 65 - r_idx
+  
+  valeur_xy <- matrice[vis_r, vis_c]
   
   return(c(params_vec, valeur_xy))
 })

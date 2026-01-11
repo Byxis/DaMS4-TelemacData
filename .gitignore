@@ -4,3 +4,4 @@ src/LoireSully_model/courbe_tarage_NEW.txt
 src/LoireSully_model/*.slf
 .Rproj.user/*
 
+.Rproj.user
