@@ -1,20 +1,10 @@
 function(input, output, session) {
-  
-  # Data setup
   catalog_df <- load_catalog()
-  
-  # Points data
   points_data <- reactiveVal(list())
   
   observe({
-    # Load RData if exists
-    path_rdata <- "../RData/points_interet.RData"
-    if (!file.exists(path_rdata)) path_rdata <- "./RData/points_interet.RData"
-    
-    if (file.exists(path_rdata)) {
-      load(path_rdata)
-      points_data(points_interet)
-    }
+    load("../RData/points_interet.RData")
+    points_data(points_interet)
   })
   
   # -- Dynamic Selectors Logic --
@@ -33,24 +23,11 @@ function(input, output, session) {
     for (i in seq_along(PARAM_NAMES)) {
       p <- PARAM_NAMES[i]
       inputId <- paste0("sel_", p)
-      
-      # Available choices given previous filters
       choices <- sort(unique(current_df[[p]]))
-      
-      # What is currently in the input?
       current_val <- input[[inputId]]
-      
-      # logic:
-      # If current_val is valid in new choices, keep it.
-      # If not, pick the first one.
-      # If current_val is NULL (init), pick first.
-      
       selected_val <- if (!is.null(current_val) && (current_val %in% choices)) current_val else choices[1]
       
-      # Update the input
       updateSelectInput(session, inputId, choices = choices, selected = selected_val)
-      
-      # Narrow down dataset for the NEXT parameter
       if (!is.null(selected_val)) {
         current_df <- current_df[current_df[[p]] == selected_val, ]
       }
@@ -152,17 +129,44 @@ function(input, output, session) {
   # -- Inputs Sync --
   observeEvent(c(input$local_row, input$local_col), {
     if (input$input_method %in% c("local", "click")) {
-       gps <- local_to_gps(input$local_row, input$local_col)
-       updateNumericInput(session, "gps_x", value = gps$x)
-       updateNumericInput(session, "gps_y", value = gps$y)
+       lam <- grid_to_lambert(input$local_row, input$local_col)
+       updateNumericInput(session, "lambert_x", value = lam$x)
+       updateNumericInput(session, "lambert_y", value = lam$y)
+       
+       wgs <- lambert_to_wgs84(lam$x, lam$y)
+         if (!is.null(wgs)) {
+             updateNumericInput(session, "wgs_lat", value = wgs$lat)
+             updateNumericInput(session, "wgs_lon", value = wgs$lon)
+         }
+    }
+  })
+
+  observeEvent(c(input$lambert_x, input$lambert_y), {
+    if (input$input_method == "lambert") {
+      grid <- lambert_to_grid(input$lambert_x, input$lambert_y)
+      updateNumericInput(session, "local_row", value = grid$row)
+      updateNumericInput(session, "local_col", value = grid$col)
+      
+      wgs <- lambert_to_wgs84(input$lambert_x, input$lambert_y)
+         if (!is.null(wgs)) {
+             updateNumericInput(session, "wgs_lat", value = wgs$lat)
+             updateNumericInput(session, "wgs_lon", value = wgs$lon)
+         }
     }
   })
   
-  observeEvent(c(input$gps_x, input$gps_y), {
-    if (input$input_method == "gps") {
-      loc <- gps_to_local(input$gps_x, input$gps_y)
-      updateNumericInput(session, "local_row", value = loc$row)
-      updateNumericInput(session, "local_col", value = loc$col)
+  observeEvent(c(input$wgs_lat, input$wgs_lon), {
+    if (input$input_method == "wgs84") {
+      
+      lam <- wgs84_to_lambert(input$wgs_lat, input$wgs_lon)
+      if (!is.null(lam)) {
+          updateNumericInput(session, "lambert_x", value = lam$x)
+          updateNumericInput(session, "lambert_y", value = lam$y)
+          
+          grid <- lambert_to_grid(lam$x, lam$y)
+          updateNumericInput(session, "local_row", value = grid$row)
+          updateNumericInput(session, "local_col", value = grid$col)
+      }
     }
   })
   
@@ -173,13 +177,13 @@ function(input, output, session) {
     
     r <- input$local_row
     c <- input$local_col
-    gx <- input$gps_x
-    gy <- input$gps_y
+    gx <- input$lambert_x
+    gy <- input$lambert_y
     
     current_list <- points_data()
     
-    if (is.null(current_list$coordonneesGps)) current_list$coordonneesGps <- list()
-    current_list$coordonneesGps[[n]] <- c(x = gx, y = gy)
+    if (is.null(current_list$coordonneesLambert93)) current_list$coordonneesLambert93 <- list()
+    current_list$coordonneesLambert93[[n]] <- c(x = gx, y = gy)
     
     if (is.null(current_list$coordoneesLocales)) current_list$coordoneesLocales <- list()
     current_list$coordoneesLocales[[n]] <- c(row = r, col = c)
@@ -188,14 +192,10 @@ function(input, output, session) {
     points_interet <- current_list 
     
     # Save Point
-    save_path <- "../RData/points_interet.RData"
-    if (!dir.exists("../RData")) save_path <- "./RData/points_interet.RData"
-    
-    save(points_interet, file = save_path)
+    save(points_interet, file = "../RData/points_interet.RData")
     output$status_msg <- renderText({ paste("Point", n, "sauvegardé. Calcul en cours...") })
 
     # -- Calculate Matrix --
-    
     cible <- current_list$coordoneesLocales[[n]]
     
     if (is.null(catalog_df)) {
@@ -248,13 +248,9 @@ function(input, output, session) {
     df_final <- as.data.frame(matrice_finale)
     colnames(df_final) <- c("er", "ks2", "ks3", "ks4", "ks_fp", "of", "qmax", "tm", "hauteur")
     
-    save_dir <- "../RData"
-    if (!dir.exists(save_dir)) save_dir <- "./RData"
+    save(df_final, file = file.path("../RData/", paste0(n, "_matrix.RData")))
     
-    save_path_mat <- file.path(save_dir, paste0(n, "_matrix.RData"))
-    save(df_final, file = save_path_mat)
-    
-    output$status_msg <- renderText({ paste("Point", n, "sauvegardé et calcul terminé :", basename(save_path_mat)) })
+    output$status_msg <- renderText({ paste("Point", n, "sauvegardé et calcul terminé :", paste0(n, "_matrix.RData")) })
   })
 
   # -- Delete Point Logic --
@@ -281,7 +277,7 @@ function(input, output, session) {
      
      current_list <- points_data()
      
-     if (!is.null(current_list$coordonneesGps[[rem_name]])) {
+     if (!is.null(current_list$coordonneesLambert93[[rem_name]])) {
          current_list$coordonneesGps[[rem_name]] <- NULL
      }
      if (!is.null(current_list$coordoneesLocales[[rem_name]])) {
@@ -291,9 +287,7 @@ function(input, output, session) {
      points_data(current_list)
      points_interet <- current_list
      
-     save_path <- "../RData/points_interet.RData"
-     if (!dir.exists("../RData")) save_path <- "./RData/points_interet.RData"
-     save(points_interet, file = save_path)
+     save(points_interet, file = "../RData/points_interet.RData")
      
      output$status_msg <- renderText({ paste("Point", rem_name, "supprimé avec succès.") })
   })

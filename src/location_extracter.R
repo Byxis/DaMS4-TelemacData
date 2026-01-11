@@ -1,4 +1,5 @@
 library(ggplot2)
+library(sf)
 
 # -- CALCUL DES COORDONNEES -- #
 
@@ -35,15 +36,15 @@ for (nom in names(raw_points)) {
 }
 
 points_interet <- list(
-  coordonneesGps = gps_list,
+  coordonneesLambert93 = gps_list,
   coordoneesLocales = locales_list
 )
 
 print(points_interet$coordoneesLocales)
-save(points_interet, file = "./RData/points_interet.RData")
+save(points_interet, file = "../RData/points_interet.RData")
 
 # -- TEST EN PLOT -- #
-load("./RData/points_interet.RData")
+load("../RData/points_interet.RData")
 
 data <- read.csv("./data/er,ks2,ks3,ks4,ks_fp,of,qmax,tm=0.0447351163649,23.5190092312871,31.7359848081414,18.4741073065111,19.015498629231,-0.0689854550227523,21158.4754810948,679267.098263043_maxH_sully.csv", row.names = 1)
 matrice <- as.matrix(data)
@@ -64,4 +65,3 @@ image(1:64, 1:64, t(matrice),
 
 points(px, py, pch = 18, col = "red", cex = 1.5)
 text(px, py, labels = gsub("_", " ", noms), pos = 3, col = "black", font = 2, cex = 0.8)
-

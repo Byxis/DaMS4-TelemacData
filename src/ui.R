@@ -23,8 +23,9 @@ fluidPage(
         sidebarPanel(
           textInput("poi_name", "Nom du point:", value = "nouveau_point"),
           radioButtons("input_method", "Méthode d'entrée:",
-                       choices = c("Coordonnées Locales" = "local",
-                                   "GPS" = "gps",
+                       choices = c("Coordonnées Locales (Row/Col)" = "local",
+                                   "Lambert 93 (Projected)" = "lambert",
+                                   "GPS (WGS84)" = "wgs84",
                                    "Click sur carte" = "click")),
           conditionalPanel(
             condition = "input.input_method == 'local' || input.input_method == 'click'",
@@ -32,13 +33,19 @@ fluidPage(
             numericInput("local_col", "Colonne (Col):", value = 32, min = 1, max = 64)
           ),
           conditionalPanel(
-            condition = "input.input_method == 'gps'",
-            numericInput("gps_x", "X:", value = (X_MIN+X_MAX)/2),
-            numericInput("gps_y", "Y:", value = (Y_MIN+Y_MAX)/2)
+            condition = "input.input_method == 'lambert'",
+            numericInput("lambert_x", "X (Lambert):", value = (X_MIN+X_MAX)/2),
+            numericInput("lambert_y", "Y (Lambert):", value = (Y_MIN+Y_MAX)/2)
           ),
-          actionButton("create_poi", "Créer & Calculer", class = "btn-primary"),
+          conditionalPanel(
+            condition = "input.input_method == 'wgs84'",
+            tagList(
+                numericInput("wgs_lat", "Latitude:", value = 47.0),
+                numericInput("wgs_lon", "Longitude:", value = 4.5)
+              )
+          ),
+          actionButton("create_poi", "Créer le point", class = "btn-primary"),
           hr(),
-          # actionButton("calc_matrix", "Calculer Matrice", class = "btn-success"),
           verbatimTextOutput("status_msg"),
           hr(),
           h4("Supprimer un point"),

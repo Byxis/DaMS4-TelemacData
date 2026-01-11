@@ -1,5 +1,6 @@
 library(shiny)
 library(ggplot2)
+library(sf)
 
 # -- Constants --
 X_MIN <- 652003.44
@@ -13,21 +14,36 @@ DY <- (Y_MAX - Y_MIN) / N_ROWS
 
 PARAM_NAMES <- c("er", "ks2", "ks3", "ks4", "ks_fp", "of", "qmax", "tm")
 
-# -- Helper functions --
-gps_to_local <- function(x, y) {
+# -- Helper Functions --
+lambert_to_grid <- function(x, y) {
   col_idx <- floor((x - X_MIN) / DX) + 1
   row_from_bottom <- floor((y - Y_MIN) / DY)
   row_idx <- N_ROWS - row_from_bottom
   return(list(row = row_idx, col = col_idx))
 }
 
-local_to_gps <- function(row, col) {
+grid_to_lambert <- function(row, col) {
   x <- X_MIN + (col - 0.5) * DX
   y <- Y_MIN + (N_ROWS - row + 0.5) * DY
   return(list(x = x, y = y))
 }
 
-# -- Load and Parse Data Catalog --
+wgs84_to_lambert <- function(lat, lon) {
+  pt <- st_sfc(st_point(c(lon, lat)), crs = 4326)
+  pt_lamb <- st_transform(pt, 2154)
+  coords <- st_coordinates(pt_lamb)
+
+  return(list(x = coords[1], y = coords[2]))
+}
+
+lambert_to_wgs84 <- function(x, y) {
+  pt <- st_sfc(st_point(c(x, y)), crs = 2154)
+  pt_wgs <- st_transform(pt, 4326)
+  coords <- st_coordinates(pt_wgs)
+
+  return(list(lat = coords[2], lon = coords[1]))
+}
+
 load_catalog <- function() {
   data_dir <- "../data"
   if (!dir.exists(data_dir)) {
@@ -49,7 +65,6 @@ load_catalog <- function() {
     vals <- strsplit(val_part, ",")[[1]]
     if (length(vals) < 8) return(NULL)
     
-    # Convert to numeric
     vals <- as.numeric(vals[1:8])
     names(vals) <- PARAM_NAMES
     
