@@ -28,6 +28,20 @@ function(input, output, session) {
     lasso_models(models)
   })
   
+  # Modèles Random Forest K-Fold 10
+  rf_kfold_models <- reactiveVal(list())
+  observe({
+    models <- load_rf_kfold_models()
+    rf_kfold_models(models)
+  })
+  
+  # Modèles Random Forest 70/30
+  rf_7030_models <- reactiveVal(list())
+  observe({
+    models <- load_rf_7030_models()
+    rf_7030_models(models)
+  })
+  
   # Statistiques de normalisation pour DL
   dl_stats <- reactive({
     load_normalization_stats()
@@ -53,12 +67,12 @@ function(input, output, session) {
   init_prediction_tab(
     input, output, session,
     catalog_df, points_data, reference_simulation,
-    dl_model, dl_stats, lasso_models
+    dl_model, dl_stats, lasso_models, rf_kfold_models, rf_7030_models
   )
   
   # Onglet Ajouter un Point (utilise current_matrix de Visualisation)
   init_points_tab(
     input, output, session,
-    catalog_df, points_data, current_matrix, lasso_models
+    catalog_df, points_data, current_matrix, lasso_models, rf_kfold_models, rf_7030_models
   )
 }

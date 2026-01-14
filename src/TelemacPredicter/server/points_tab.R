@@ -1,5 +1,5 @@
 # Initialise les observers pour l'onglet Ajouter un Point
-init_points_tab <- function(input, output, session, catalog_df, points_data, current_matrix, lasso_models) {
+init_points_tab <- function(input, output, session, catalog_df, points_data, current_matrix, lasso_models, rf_kfold_models, rf_7030_models) {
   
   # -- Click sur la carte --
   output$click_map <- renderPlot({
@@ -124,12 +124,12 @@ init_points_tab <- function(input, output, session, catalog_df, points_data, cur
         c_idx <- if("col.x" %in% names(cible)) cible["col.x"] else cible["col"]
         
         if (is.null(r_idx) || is.null(c_idx) || is.na(r_idx) || is.na(c_idx)) return(NULL)
-        vis_r <- c_idx
-        vis_c <- 64 - r_idx
+        mat_row <- c_idx
+        mat_col <- 65 - r_idx
         
-        if (vis_r < 1 || vis_r > nrow(mat) || vis_c < 1 || vis_c > ncol(mat)) return(NULL)
+        if (mat_row < 1 || mat_row > nrow(mat) || mat_col < 1 || mat_col > ncol(mat)) return(NULL)
         
-        valeur_xy <- mat[vis_r, vis_c]
+        valeur_xy <- mat[mat_row, mat_col]
         
         return(c(params_vec, valeur_xy))
       })
@@ -210,5 +210,53 @@ init_points_tab <- function(input, output, session, catalog_df, points_data, cur
      save(points_interet, file = points_interet_path)
      
      output$status_msg <- renderText({ paste("Point", rem_name, "supprimé avec succès.") })
+  })
+  
+  # -- Réentraînement de tous les modèles --
+  observeEvent(input$retrain_all_btn, {
+    output$retrain_status_msg <- renderText({ "Régénération des matrices en cours..." })
+    
+    withProgress(message = 'Réentraînement des modèles...', value = 0, {
+      
+      # Étape 1: Régénérer toutes les matrices
+      incProgress(0.1, detail = "Régénération des matrices...")
+      matrix_result <- regenerate_all_matrices(catalog_df, points_data())
+      
+      # Étape 2: Réentraîner les modèles Lasso
+      incProgress(0.25, detail = "Entraînement des modèles Lasso...")
+      lasso_result <- retrain_all_lasso_models()
+      
+      # Étape 3: Réentraîner les modèles RF K-Fold
+      incProgress(0.5, detail = "Entraînement des modèles RF K-Fold...")
+      rf_kfold_result <- retrain_all_rf_kfold_models()
+      
+      # Étape 4: Réentraîner les modèles RF 70/30
+      incProgress(0.75, detail = "Entraînement des modèles RF 70/30...")
+      rf_7030_result <- retrain_all_rf_7030_models()
+      
+      # Étape 5: Recharger tous les modèles
+      incProgress(0.9, detail = "Rechargement des modèles...")
+      lasso_models(load_lasso_models())
+      rf_kfold_models(load_rf_kfold_models())
+      rf_7030_models(load_rf_7030_models())
+      
+      incProgress(1.0, detail = "Terminé!")
+    })
+    
+    output$retrain_status_msg <- renderText({ 
+      paste0(
+        "Réentraînement terminé !\n",
+        "Matrices : ", matrix_result$success, " succès, ", matrix_result$failed, " échecs\n",
+        "Lasso : ", lasso_result$success, " succès\n",
+        "RF K-Fold : ", rf_kfold_result$success, " succès\n",
+        "RF 70/30 : ", rf_7030_result$success, " succès"
+      )
+    })
+    
+    total_models <- lasso_result$success + rf_kfold_result$success + rf_7030_result$success
+    showNotification(
+      paste("Réentraînement terminé :", total_models, "modèles réentraînés"),
+      type = "message"
+    )
   })
 }

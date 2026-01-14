@@ -1,5 +1,5 @@
 # Initialise les observers pour l'onglet Prédiction
-init_prediction_tab <- function(input, output, session, catalog_df, points_data, reference_simulation, dl_model, dl_stats, lasso_models) {
+init_prediction_tab <- function(input, output, session, catalog_df, points_data, reference_simulation, dl_model, dl_stats, lasso_models, rf_kfold_models, rf_7030_models) {
   
   # -- Vérification des bornes des paramètres --
   observe({
@@ -90,7 +90,7 @@ init_prediction_tab <- function(input, output, session, catalog_df, points_data,
         })
     }
     
-    # Préparation des inputs pour Lasso    
+    # Préparation des inputs pour Lasso et RF
     lasso_input_mat <- matrix(NA, nrow=1, ncol=8)
     colnames(lasso_input_mat) <- PARAM_NAMES
     
@@ -98,10 +98,24 @@ init_prediction_tab <- function(input, output, session, catalog_df, points_data,
        lasso_input_mat[1, i] <- input[[paste0("pred_", PARAM_NAMES[i])]]
     }
     
+    # Input pour RF (nommé x1 à x8)
+    rf_input <- as.data.frame(lasso_input_mat)
+    colnames(rf_input) <- paste0("x", 1:8)
+    
     l_models <- lasso_models()
+    rf_kfold <- rf_kfold_models()
+    rf_7030 <- rf_7030_models()
 
     locs <- pts$coordoneesLocales
-    df_res <- data.frame(Point = character(), Predit = numeric(), Simule = numeric(), Lasso = numeric(), stringsAsFactors = FALSE)
+    df_res <- data.frame(
+      Point = character(), 
+      Predit = numeric(), 
+      Simule = numeric(), 
+      Lasso = numeric(), 
+      RF_KFold = numeric(), 
+      RF_7030 = numeric(), 
+      stringsAsFactors = FALSE
+    )
     
     for (nm in names(locs)) {
        p <- locs[[nm]]
@@ -109,30 +123,33 @@ init_prediction_tab <- function(input, output, session, catalog_df, points_data,
        c <- if("col.x" %in% names(p)) p["col.x"] else p["col"]
        
        val_pred <- NA
-       val_ref <- NA # NA si pas de matrice de référence
+       val_ref <- NA
        val_lasso <- NA
+       val_rf_kfold <- NA
+       val_rf_7030 <- NA
        
        if (!is.null(r) && !is.null(c) && !is.na(r) && !is.na(c)) {
            if (r >= 1 && r <= 64 && c >= 1 && c <= 64) {
+               mat_row <- c
+               mat_col <- 65 - r
                
-               # Matrice de prédiction (Alignée via t()) -> Accès direct
+               # Matrice de prédiction Deep Learning
                if (!is.null(mat)) {
-                   if (r <= nrow(mat) && c <= ncol(mat)) {
-                        val_pred <- mat[r, c]
+                   if (mat_row >= 1 && mat_row <= nrow(mat) && mat_col >= 1 && mat_col <= ncol(mat)) {
+                        val_pred <- mat[mat_row, mat_col]
                    }
                }
                
-               # Matrice de référence (CSV standard) -> Accès direct
+               # Matrice de référence Telemac (CSV standard)
                if (!is.null(mat_ref)) {
-                   if (r <= nrow(mat_ref) && c <= ncol(mat_ref)) {
-                        val_ref <- mat_ref[r, c]
+                   if (mat_row >= 1 && mat_row <= nrow(mat_ref) && mat_col >= 1 && mat_col <= ncol(mat_ref)) {
+                        val_ref <- mat_ref[mat_row, mat_col]
                    }
                }
            }
        }
        
        # Prédiction Lasso
-       # 'nm' est la clé dans points_data, par exemple "caserne_pompiers"
        if (nm %in% names(l_models)) {
            try({
                m <- l_models[[nm]]
@@ -142,7 +159,26 @@ init_prediction_tab <- function(input, output, session, catalog_df, points_data,
                } else {
                    val_lasso <- as.numeric(predict(m, newx = lasso_input_mat, s = "lambda.min"))
                }
-           })
+           }, silent = TRUE)
+       }
+       
+       # Prédiction RF K-Fold
+       if (nm %in% names(rf_kfold)) {
+           try({
+               m <- rf_kfold[[nm]]
+               val_rf_kfold <- as.numeric(predict(m, newdata = rf_input))
+           }, silent = TRUE)
+       }
+       
+       # Prédiction RF 70/30
+       if (nm %in% names(rf_7030)) {
+           try({
+               m <- rf_7030[[nm]]
+               # RF 70/30 utilise "hauteur" comme variable cible
+               rf_input_7030 <- rf_input
+               colnames(rf_input_7030) <- paste0("x", 1:8)
+               val_rf_7030 <- as.numeric(predict(m, newdata = rf_input_7030))
+           }, silent = TRUE)
        }
        
        disp_name <- gsub("_", " ", nm)
@@ -150,23 +186,31 @@ init_prediction_tab <- function(input, output, session, catalog_df, points_data,
            Point = disp_name, 
            Predit = val_pred, 
            Simule = val_ref,
-           Lasso = val_lasso
+           Lasso = val_lasso,
+           RF_KFold = val_rf_kfold,
+           RF_7030 = val_rf_7030
        ))
     }
     
-    # Style dynamique des colonnes
-    cols_to_keep <- c("Point", "Prédit (DeepLearning)")
+    # Construction du tableau final avec colonnes dynamiques
+    df_final <- data.frame(Point = df_res$Point)
+    df_final[["Prédit (DeepLearning)"]] <- df_res$Predit
     
-    df_final <- df_res[, c("Point", "Predit")]
-    colnames(df_final) <- cols_to_keep
-    
-    if (!is.null(mat_ref)) {
-        df_final[["Simulé (Telemac)"]] <- df_res$Simule
-    }
-    
-    # Vérification si une prédiction Lasso existe
     if (any(!is.na(df_res$Lasso))) {
          df_final[["Prédit (Lasso)"]] <- df_res$Lasso
+    }
+    
+    if (any(!is.na(df_res$RF_KFold))) {
+         df_final[["RF (K-Fold)"]] <- df_res$RF_KFold
+    }
+    
+    if (any(!is.na(df_res$RF_7030))) {
+         df_final[["RF (70/30)"]] <- df_res$RF_7030
+    }
+    
+    # Colonne Telemac à la fin
+    if (!is.null(mat_ref)) {
+        df_final[["Simulé (Telemac)"]] <- df_res$Simule
     }
     
     df_final

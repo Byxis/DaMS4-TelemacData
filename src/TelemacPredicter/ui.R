@@ -71,7 +71,12 @@ fluidPage(
           hr(),
           h4("Supprimer un point"),
           selectInput("point_to_delete", "Points créés :", choices = NULL),
-          actionButton("delete_point", "Supprimer", class = "btn-danger")
+          actionButton("delete_point", "Supprimer", class = "btn-danger"),
+          hr(),
+          h4("Réentraîner les modèles"),
+          helpText("Régénère toutes les matrices et réentraîne tous les modèles Lasso."),
+          actionButton("retrain_all_btn", "Réentraîner tous les modèles", class = "btn-warning"),
+          verbatimTextOutput("retrain_status_msg")
         ),
         mainPanel(
            plotOutput("click_map", click = "map_click", height = "600px"),
@@ -96,7 +101,7 @@ fluidPage(
         mainPanel(
           plotOutput("dl_map", height = "600px"),
           hr(),
-          h4("Valeurs prédites avec DeepLearning"),
+          h4("Valeurs obtenues :"),
           tableOutput("dl_points_table")
         )
       )
