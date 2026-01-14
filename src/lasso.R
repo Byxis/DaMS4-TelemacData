@@ -20,7 +20,7 @@ filename <- args[1]
 input_path <- file.path(rootdir,"RData", filename)
 
 output_filename <- paste0(tools::file_path_sans_ext(filename), "_lasso.rds")
-output_dir <- file.path(rootdir,"src/models/lasso")
+output_dir <- file.path(rootdir,"models/lasso")
 output_path <- file.path(output_dir, output_filename)
 
 # 1. Chargement des données
