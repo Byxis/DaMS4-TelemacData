@@ -43,6 +43,9 @@ points_interet <- list(
 print(points_interet$coordoneesLocales)
 save(points_interet, file = "../RData/points_interet.RData")
 
+
+
+
 # -- TEST EN PLOT -- #
 load("../RData/points_interet.RData")
 
