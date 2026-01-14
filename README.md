@@ -21,3 +21,9 @@ The flood is characterized by the following parameters:
 * "tm": time to maximum flooding
 
 Each flood was simulated with Telemac (V8) using Funz-Telemac (https://funz.github.io) parametric launcher, with the Loire-Sully model given in "src/" subdirectory (incl. R launch script).
+
+
+# Usage des scripts
+```{r}
+Rscript lasso.R <fichier_data>.RData
+# ```
