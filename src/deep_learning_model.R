@@ -131,5 +131,6 @@ history <- model %>% fit(
 )
 
 # -- Sauvegarde --
-save_model(model, "telemac_deep_model.keras")
+if (!dir.exists("models/deeplearning")) dir.create("models/deeplearning", recursive = TRUE)
+save_model(model, "models/deeplearning/telemac_deep_model.keras")
 plot(history)

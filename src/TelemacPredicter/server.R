@@ -2,9 +2,12 @@ function(input, output, session) {
   catalog_df <- load_catalog()
   points_data <- reactiveVal(list())
   reference_simulation <- reactiveVal(NULL)
-  # -- Load DL Model & Stats --
   dl_model <- tryCatch({
-    candidates <- c("../../telemac_deep_model.keras", "../telemac_deep_model.keras", "telemac_deep_model.keras")
+    candidates <- c(
+      "models/deeplearning/telemac_deep_model.keras",
+      "../models/deeplearning/telemac_deep_model.keras",
+      "../../models/deeplearning/telemac_deep_model.keras"
+    )
     model_path <- NULL
     for (p in candidates) {
       if (file.exists(p)) {
@@ -219,11 +222,10 @@ function(input, output, session) {
        
        val <- NA
        if (!is.null(r) && !is.null(c) && !is.na(r) && !is.na(c)) {
-           vis_r <- c
-           vis_c <- 65 - r
-           
-           if (vis_r >= 1 && vis_r <= nrow(mat) && vis_c >= 1 && vis_c <= ncol(mat)) {
-               val <- mat[vis_r, vis_c]
+           if (r >= 1 && r <= 64 && c >= 1 && c <= 64) {
+               if (r <= nrow(mat) && c <= ncol(mat)) {
+                   val <- mat[r, c]
+               }
            }
        }
        
@@ -465,7 +467,7 @@ function(input, output, session) {
     
     if (is.null(result_mat)) {
        plot(0, 0, type="n", axes=FALSE, xlab="", ylab="")
-       text(0, 0, "Erreur lors de la prédiction.", cex=1.5)
+       text(0, 0, "Modèle introuvable ou erreur de calcul.", cex=1.5)
        return()
     }
     
@@ -520,17 +522,21 @@ function(input, output, session) {
        val_ref <- NA # NA if no ref
        
        if (!is.null(r) && !is.null(c) && !is.na(r) && !is.na(c)) {
-           vis_r <- c
-           vis_c <- 65 - r
-           
-           # Prediction
-           if (vis_r >= 1 && vis_r <= nrow(mat) && vis_c >= 1 && vis_c <= ncol(mat)) {
-               val_pred <- mat[vis_r, vis_c]
-           }
-           
-           # Reference
-           if (!is.null(mat_ref) && vis_r >= 1 && vis_r <= nrow(mat_ref) && vis_c >= 1 && vis_c <= ncol(mat_ref)) {
-               val_ref <- mat_ref[vis_r, vis_c]
+           if (r >= 1 && r <= 64 && c >= 1 && c <= 64) {
+               
+               # Prediction Matrix (Aligned via t()) -> Access directly
+               if (!is.null(mat)) {
+                   if (r <= nrow(mat) && c <= ncol(mat)) {
+                        val_pred <- mat[r, c]
+                   }
+               }
+               
+               # Reference Matrix (Standard CSV) -> Access directly
+               if (!is.null(mat_ref)) {
+                   if (r <= nrow(mat_ref) && c <= ncol(mat_ref)) {
+                        val_ref <- mat_ref[r, c]
+                   }
+               }
            }
        }
        

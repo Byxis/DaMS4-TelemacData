@@ -2,7 +2,7 @@ library(keras3)
 library(tensorflow)
 
 # -- Configuration --
-MODEL_PATH <- "telemac_deep_model.keras"
+MODEL_PATH <- "models/deeplearning/telemac_deep_model.keras"
 STATS_PATH <- "normalization_stats.RData"
 
 plot_grid <- function(mat, title, rotate = FALSE) {
