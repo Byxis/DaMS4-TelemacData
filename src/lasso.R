@@ -77,3 +77,22 @@ if (!dir.exists(output_dir)) {
 }
 saveRDS(lasso_cv, file = output_path)
 cat("\nModèle exporté avec succès vers :", output_path, "\n")
+
+
+# 8 exemple de prédiction
+
+cat("\n--- Prédiction vs Réel ---\n")
+
+# On extrait la première ligne des paramètres pour faire un test
+test_observation <- X[1, , drop = FALSE]
+valeur_reelle <- y[1]
+
+prediction_lasso <- predict(lasso_cv, s = "lambda.min", newx = test_observation)
+
+# Affichage des paramètres utilisés pour ce test
+cat("Paramètres d'entrée (Observation 1) :\n")
+print(test_observation)
+
+cat("\nRésultat Telemac (Réel) : ", round(valeur_reelle, 4), "\n")
+cat("Résultat Lasso (Prédit) : ", round(as.numeric(prediction_lasso), 4), "\n")
+cat("Erreur Absolue         : ", round(abs(valeur_reelle - prediction_lasso), 4), "\n")
