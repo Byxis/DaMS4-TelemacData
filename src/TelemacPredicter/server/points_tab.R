@@ -3,20 +3,93 @@ init_points_tab <- function(input, output, session, catalog_df, points_data, cur
   
   # -- Click sur la carte --
   output$click_map <- renderPlot({
-    # Affichage de la matrice actuelle de l'onglet Visualisation
-    render_telemac_map(current_matrix(), points_data())
+    matrice <- current_matrix()
+    poi_list <- points_data()
+    
+    if (is.null(matrice)) {
+      plot(0, 0, type="n", axes=FALSE, xlab="", ylab="", xlim=c(1,64), ylim=c(1,64))
+      text(32, 32, "Sélectionnez les paramètres\ndans l'onglet Visualisation\npour voir la carte", cex=1.5)
+      return()
+    }
+    
+    # Rendu simplifié sans modification de par() pour préserver les coordonnées du clic
+    locales <- poi_list$coordoneesLocales
+    
+    px <- numeric(length(locales))
+    py <- numeric(length(locales))
+    valid_pts <- logical(length(locales))
+    
+    if (length(locales) > 0) {
+      for (i in seq_along(locales)) {
+        p <- locales[[i]]
+        r <- if("row.y" %in% names(p)) p["row.y"] else p["row"]
+        c <- if("col.x" %in% names(p)) p["col.x"] else p["col"]
+        
+        if (!is.null(r) && !is.null(c) && !is.na(r) && !is.na(c)) {
+          px[i] <- 64 - r
+          py[i] <- c
+          valid_pts[i] <- TRUE
+        }
+      }
+    }
+    
+    noms <- names(locales)
+    couleurs <- colorRampPalette(c("white", "pink", "#ffd440", "yellow", "green"))(100)
+    
+    # Affichage de la carte - sans modifier par()
+    image(1:64, 1:64, t(matrice), 
+          col = couleurs, 
+          ylim = c(64, 1),
+          xlab = "Colonnes (X)", 
+          ylab = "Lignes (Y)")
+          
+    if (any(valid_pts)) {
+      points(px[valid_pts], py[valid_pts], pch = 18, col = "red", cex = 1.5)
+      text(px[valid_pts], py[valid_pts], labels = gsub("_", " ", noms[valid_pts]), pos = 3, col = "black", font = 2, cex = 0.8)
+    }
   })
   
   observeEvent(input$map_click, {
+    # Vérifier que la matrice est disponible
+    mat <- current_matrix()
+    if (is.null(mat)) {
+      showNotification(
+        "Veuillez d'abord sélectionner des paramètres dans l'onglet Visualisation pour afficher la carte.",
+        type = "warning",
+        duration = 5
+      )
+      return()
+    }
+    
+    # Debug: Afficher les coordonnées brutes du clic
+    c_x <- input$map_click$x
+    c_y <- input$map_click$y
+    
+    showNotification(
+      paste("Clic détecté - x:", round(c_x, 2), "y:", round(c_y, 2)),
+      type = "message",
+      duration = 3
+    )
+    
     if (input$input_method == "click") {
-      c_x <- input$map_click$x
-      c_y <- input$map_click$y
+      # La carte est affichée avec image(1:64, 1:64, ..., ylim = c(64, 1))
+      # x va de 1 à 64 (colonnes)
+      # y va de 64 à 1 (inversé visuellement, mais les coordonnées restent 1-64)
+      # 
+      # Les points sont placés à: px = 64 - row, py = col
+      # Pour inverser: row = 64 - x_click, col = y_click
       
       new_row <- round(64 - c_x)
       new_col <- round(c_y)
       
       new_row <- max(1, min(64, new_row))
       new_col <- max(1, min(64, new_col))
+      
+      showNotification(
+        paste("Conversion - Row:", new_row, "Col:", new_col),
+        type = "message",
+        duration = 3
+      )
       
       updateNumericInput(session, "local_row", value = new_row)
       updateNumericInput(session, "local_col", value = new_col)

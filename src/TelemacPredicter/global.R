@@ -88,7 +88,7 @@ load_catalog <- function() {
 }
 
 # -- Plotting Helper --
-render_telemac_map <- function(matrice, poi_list) {
+render_telemac_map <- function(matrice, poi_list, show_colorbar = TRUE) {
   if (is.null(matrice)) {
     plot(0, 0, type="n", axes=FALSE, xlab="", ylab="")
     text(0, 0, "Sélectionnez les paramètres\npour voir la carte", cex=1.5)
@@ -127,34 +127,54 @@ render_telemac_map <- function(matrice, poi_list) {
   old_par <- par(no.readonly = TRUE)
   on.exit(par(old_par))
   
-  # Layout : carte principale (gauche) + colorbar (droite)
-  layout(matrix(c(1, 2), nrow = 1), widths = c(5, 1))
-  
-  # -- Carte principale --
-  par(mar = c(4, 4, 2, 1))
-  image(1:64, 1:64, t(matrice), 
-        col = couleurs, 
-        ylim = c(64, 1), 
-        xlab = "Colonnes (X)", 
-        ylab = "Lignes (Y)")
-        
-  if (any(valid_pts)) {
-    points(px[valid_pts], py[valid_pts], pch = 18, col = "red", cex = 1.5)
-    text(px[valid_pts], py[valid_pts], labels = gsub("_", " ", noms[valid_pts]), pos = 3, col = "black", font = 2, cex = 0.8)
+  if (show_colorbar) {
+    # Layout avec colorbar (pour l'onglet Visualisation)
+    layout(matrix(c(1, 2), nrow = 1), widths = c(5, 1))
+    
+    # -- Carte principale --
+    par(mar = c(4, 4, 2, 1))
+    image(1:64, 1:64, t(matrice), 
+          col = couleurs, 
+          ylim = c(64, 1), 
+          xlab = "Colonnes (X)", 
+          ylab = "Lignes (Y)")
+          
+    if (any(valid_pts)) {
+      points(px[valid_pts], py[valid_pts], pch = 18, col = "red", cex = 1.5)
+      text(px[valid_pts], py[valid_pts], labels = gsub("_", " ", noms[valid_pts]), pos = 3, col = "black", font = 2, cex = 0.8)
+    }
+    
+    # -- Colorbar --
+    par(mar = c(4, 0.5, 2, 3))
+    
+    # Créer une matrice pour la barre de couleurs (verticale)
+    colorbar_matrix <- matrix(seq(val_min, val_max, length.out = 100), nrow = 100, ncol = 1)
+    
+    image(1, seq(val_min, val_max, length.out = 100), t(colorbar_matrix),
+          col = couleurs,
+          axes = FALSE,
+          xlab = "", ylab = "")
+    
+    # Ajouter l'axe avec les valeurs
+    axis(4, at = pretty(c(val_min, val_max), n = 5), las = 1)
+    mtext("Hauteur d'eau", side = 4, line = 2, cex = 0.8)
+  } else {
+    # Carte simple sans layout (pour l'onglet Ajouter un Point - compatible avec les clics)
+    par(mar = c(4, 4, 2, 6))
+    image(1:64, 1:64, t(matrice), 
+          col = couleurs, 
+          ylim = c(64, 1), 
+          xlab = "Colonnes (X)", 
+          ylab = "Lignes (Y)")
+          
+    if (any(valid_pts)) {
+      points(px[valid_pts], py[valid_pts], pch = 18, col = "red", cex = 1.5)
+      text(px[valid_pts], py[valid_pts], labels = gsub("_", " ", noms[valid_pts]), pos = 3, col = "black", font = 2, cex = 0.8)
+    }
+    
+    # Légende simple sur le côté droit
+    legend_vals <- pretty(c(val_min, val_max), n = 5)
+    mtext(paste0("Min: ", round(val_min, 2), " | Max: ", round(val_max, 2)), 
+          side = 4, line = 1, cex = 0.7, las = 0)
   }
-  
-  # -- Colorbar --
-  par(mar = c(4, 0.5, 2, 3))
-  
-  # Créer une matrice pour la barre de couleurs (verticale)
-  colorbar_matrix <- matrix(seq(val_min, val_max, length.out = 100), nrow = 100, ncol = 1)
-  
-  image(1, seq(val_min, val_max, length.out = 100), t(colorbar_matrix),
-        col = couleurs,
-        axes = FALSE,
-        xlab = "", ylab = "")
-  
-  # Ajouter l'axe avec les valeurs
-  axis(4, at = pretty(c(val_min, val_max), n = 5), las = 1)
-  mtext("Hauteur d'eau", side = 4, line = 2, cex = 0.8)
 }
