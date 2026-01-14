@@ -16,12 +16,12 @@ if (length(args) == 0) {
 }
 
 rootdir <- here()
-rootdir
 filename <- args[1]
 input_path <- file.path(rootdir,"RData", filename)
-# Génération du nom de sortie : on enlève l'extension et on ajoute _lasso.rds
+
 output_filename <- paste0(tools::file_path_sans_ext(filename), "_lasso.rds")
-output_path <- file.path(rootdir,"src/models", output_filename)
+output_dir <- file.path(rootdir,"src/models/lasso")
+output_path <- file.path(output_dir, output_filename)
 
 # 1. Chargement des données
 if (!file.exists(input_path)) {
@@ -71,6 +71,9 @@ cat("\nR² du modèle sur les données d'entraînement : ", round(r_squared, 4),
 
 
 # 7. Sauvegarde du modèle avec le nouveau nom
-if (!dir.exists("./src/models")) dir.create("./src/models")
+if (!dir.exists(output_dir)) {
+  dir.create(output_dir, recursive = TRUE)
+  cat("Création du répertoire :", output_dir, "\n")
+}
 saveRDS(lasso_cv, file = output_path)
 cat("\nModèle exporté avec succès vers :", output_path, "\n")
