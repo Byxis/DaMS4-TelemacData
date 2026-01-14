@@ -3,6 +3,7 @@ library(ggplot2)
 library(sf)
 library(keras3)
 library(tensorflow)
+library(glmnet)
 
 # -- Constants --
 X_MIN <- 652003.44

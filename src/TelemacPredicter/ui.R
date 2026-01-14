@@ -39,7 +39,7 @@ fluidPage(
       )
     ),
     
-    tabPanel("Nouveau Point",
+    tabPanel("Ajouter un Point",
       sidebarLayout(
         sidebarPanel(
           textInput("poi_name", "Nom du point:", value = "nouveau_point"),

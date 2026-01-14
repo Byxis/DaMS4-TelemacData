@@ -1,52 +1,63 @@
 
 load("./RData/points_interet.RData")
 
-# Available interest points :
-# - gare_sully
-# - parc_chateau
-# - centre_sully
-# - caserne_pompiers
-# - domaine_epinoy NOT WORKING AS OUT OF SCOPE
-
-X <- "gare_sully"
+# Iterate over all available points
+available_points <- names(points_interet$coordoneesLocales)
+print(paste("Generating matrices for:", paste(available_points, collapse=", ")))
 
 fichiers <- list.files("./data", pattern = "_maxH_sully.csv", full.names = TRUE)
 
-cible <- points_interet$coordoneesLocales[[X]]
-
-if (is.null(cible)) {
-  stop(paste("Le point d'intérêt", X, "n'existe pas dans les données chargées."))
+# Initialize storage for all points
+data_points_list <- list()
+for (pt_name in available_points) {
+    data_points_list[[pt_name]] <- list()
 }
 
-donnees_extraites <- lapply(fichiers, function(f) {
-  
-  nom_fichier <- basename(f)
-  params_bruts <- gsub(".*=(.*)_maxH.*", "\\1", nom_fichier)
-  
-  params_vec <- as.numeric(unlist(strsplit(params_bruts, ",")))
-  params_vec <- params_vec[1:8] 
-  
-  matrice <- as.matrix(read.csv(f, header = TRUE, row.names = 1))
-  print(nom_fichier)
+total_files <- length(fichiers)
+for (i in seq_along(fichiers)) {
+    f <- fichiers[i]
+    if (i %% 100 == 0) print(paste("Processing file", i, "/", total_files))
     
-  r_idx <- cible["row.y"]
-  c_idx <- cible["col.x"]
-  
-  vis_r <- c_idx
-  vis_c <- 65 - r_idx
-  
-  valeur_xy <- matrice[vis_r, vis_c]
-  
-  return(c(params_vec, valeur_xy))
-})
+    # Parse params
+    nom_fichier <- basename(f)
+    params_bruts <- gsub(".*=(.*)_maxH.*", "\\1", nom_fichier)
+    params_vec <- as.numeric(unlist(strsplit(params_bruts, ",")))
+    params_vec <- params_vec[1:8]
+    
+    matrice <- as.matrix(read.csv(f, header = TRUE, row.names = 1))
+    
+    for (pt_name in available_points) {
+        cible <- points_interet$coordoneesLocales[[pt_name]]
+        if (!is.null(cible)) {
+            r_idx <- if("row.y" %in% names(cible)) as.integer(cible["row.y"]) else as.integer(cible["row"])
+            c_idx <- if("col.x" %in% names(cible)) as.integer(cible["col.x"]) else as.integer(cible["col"])
+            
+            valeur_xy <- NA
+            if (!is.na(r_idx) && !is.na(c_idx) && r_idx >= 1 && r_idx <= nrow(matrice) && c_idx >= 1 && c_idx <= ncol(matrice)) {
+                valeur_xy <- matrice[r_idx, c_idx]
+            } else {
+                # If coordinates are out of bounds or NA, we assign NA.
+                valeur_xy <- NA
+            }
+            
+            # Store: params + value
+            data_points_list[[pt_name]][[length(data_points_list[[pt_name]]) + 1]] <- c(params_vec, valeur_xy)
+        }
+    }
+}
 
-donnees_extraites
+# Aggregate and Save for each point
+if (!dir.exists("./RData")) dir.create("./RData")
 
-matrice_finale <- do.call(rbind, donnees_extraites)
-df_final <- as.data.frame(matrice_finale)
-
-colnames(df_final) <- c("er", "ks2", "ks3", "ks4", "ks_fp", "of", "qmax", "tm", "hauteur")
-
-save_path <- paste0("./RData/", X, "_matrix.RData")
-save(df_final, file = save_path)
-head(df_final)
+for (pt_name in available_points) {
+    print(paste("Saving data for:", pt_name))
+    raw_list <- data_points_list[[pt_name]]
+    if (length(raw_list) > 0) {
+        matrice_finale <- do.call(rbind, raw_list)
+        df_final <- as.data.frame(matrice_finale)
+        colnames(df_final) <- c("er", "ks2", "ks3", "ks4", "ks_fp", "of", "qmax", "tm", "hauteur")
+        
+        save_path <- paste0("./RData/", pt_name, "_matrix.RData")
+        save(df_final, file = save_path)
+    }
+}
