@@ -4,6 +4,7 @@ set.seed(42)
 # -------------------------
 # User parameter
 # -------------------------
+
 poi <- "gare_sully"   # "parc_chateau", "centre_sully", "gare_sully", "caserne_pompiers"
 
 # -------------------------
