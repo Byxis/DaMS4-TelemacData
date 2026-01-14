@@ -119,6 +119,19 @@ render_telemac_map <- function(matrice, poi_list) {
   
   couleurs <- colorRampPalette(c("white", "pink", "#ffd440", "yellow", "green"))(100)
   
+  # Calcul des valeurs min et max
+  val_min <- min(matrice, na.rm = TRUE)
+  val_max <- max(matrice, na.rm = TRUE)
+  
+  # Sauvegarder les paramètres graphiques
+  old_par <- par(no.readonly = TRUE)
+  on.exit(par(old_par))
+  
+  # Layout : carte principale (gauche) + colorbar (droite)
+  layout(matrix(c(1, 2), nrow = 1), widths = c(5, 1))
+  
+  # -- Carte principale --
+  par(mar = c(4, 4, 2, 1))
   image(1:64, 1:64, t(matrice), 
         col = couleurs, 
         ylim = c(64, 1), 
@@ -129,4 +142,19 @@ render_telemac_map <- function(matrice, poi_list) {
     points(px[valid_pts], py[valid_pts], pch = 18, col = "red", cex = 1.5)
     text(px[valid_pts], py[valid_pts], labels = gsub("_", " ", noms[valid_pts]), pos = 3, col = "black", font = 2, cex = 0.8)
   }
+  
+  # -- Colorbar --
+  par(mar = c(4, 0.5, 2, 3))
+  
+  # Créer une matrice pour la barre de couleurs (verticale)
+  colorbar_matrix <- matrix(seq(val_min, val_max, length.out = 100), nrow = 100, ncol = 1)
+  
+  image(1, seq(val_min, val_max, length.out = 100), t(colorbar_matrix),
+        col = couleurs,
+        axes = FALSE,
+        xlab = "", ylab = "")
+  
+  # Ajouter l'axe avec les valeurs
+  axis(4, at = pretty(c(val_min, val_max), n = 5), las = 1)
+  mtext("Hauteur d'eau", side = 4, line = 2, cex = 0.8)
 }
